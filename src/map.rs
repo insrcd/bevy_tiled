@@ -44,6 +44,7 @@ pub struct Map {
     pub layers: Vec<Layer>,
     pub tile_size: Vec2,
     pub image_folder: String,
+    pub scale: f32
 }
 
 impl Map {
@@ -76,16 +77,16 @@ impl Map {
             tiled::Orientation::Orthogonal => {
                 let center = Map::project_ortho(map_center, tile_size.x(), tile_size.y());
                 Vec3::new(
-                    origin.x() - center.x() * 4.0,
-                    origin.y() - center.y() * 4.0,
+                    origin.x() - center.x() * self.scale,
+                    origin.y() - center.y() * self.scale,
                     origin.z(),
                 )
             }
             tiled::Orientation::Isometric => {
                 let center = Map::project_iso(map_center, tile_size.x(), tile_size.y());
                 Vec3::new(
-                    origin.x() - center.x() * 4.0,
-                    origin.y() - center.y() * 4.0,
+                    origin.x() - center.x() * self.scale,
+                    origin.y() - center.y() * self.scale,
                     origin.z(),
                 )
             }

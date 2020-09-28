@@ -3,14 +3,10 @@ use crate::{
     Layer, Tile, TilesetLayer,
 };
 use anyhow::Result;
-use bevy::{
-    asset::AssetLoader,
-    prelude::Mesh,
-    render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
-};
+use bevy::{asset::AssetLoader, prelude::Mesh, render::{mesh::Indices, mesh::VertexAttribute, pipeline::PrimitiveTopology}};
 use glam::{Vec2, Vec4};
 
-use std::{io::BufReader, path::Path};
+use std::{f32::consts::PI, io::BufReader, path::Path};
 
 #[derive(Default)]
 pub struct TiledMapLoader;
@@ -25,8 +21,11 @@ impl TiledMapLoader {
 const FLIPPED_HORIZONTALLY_FLAG: u32 = 0x80000000;
 const FLIPPED_VERTICALLY_FLAG: u32 = 0x40000000;
 const FLIPPED_DIAGONALLY_FLAG: u32 = 0x20000000;
+
+const FLIPPED_LEFT_FLAG: u32 = FLIPPED_DIAGONALLY_FLAG+FLIPPED_VERTICALLY_FLAG;
+const FLIPPED_RIGHT_FLAG: u32 = FLIPPED_HORIZONTALLY_FLAG+FLIPPED_VERTICALLY_FLAG;
 const ALL_FLIP_FLAGS: u32 =
-    FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG;
+    FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG | FLIPPED_LEFT_FLAG | FLIPPED_RIGHT_FLAG;
 
 impl AssetLoader<Map> for TiledMapLoader {
     fn from_bytes(&self, asset_path: &Path, bytes: Vec<u8>) -> Result<Map> {
@@ -103,7 +102,7 @@ impl AssetLoader<Map> for TiledMapLoader {
                                         (tile / columns).floor() * tile_height;
 
                                     // Calculate positions
-                                    let (start_x, end_x, start_y, end_y) = match map.orientation {
+                                    let (mut start_x, mut end_x, mut start_y, mut end_y) = match map.orientation {
                                         tiled::Orientation::Orthogonal => {
                                             let center = Map::project_ortho(
                                                 Vec2::new(lookup_x as f32, lookup_y as f32),
@@ -154,7 +153,26 @@ impl AssetLoader<Map> for TiledMapLoader {
                                     let mut start_v: f32 = sprite_sheet_y / texture_height;
                                     let mut end_v: f32 =
                                         (sprite_sheet_y + tile_height) / texture_height;
+                                    let mut rm = Vec4::new(1.,1.,1.,1.);
+                                    if map_tile.flip_d {
+                                       /* println!("{} {}", tile_x, tile_y);
+                                        println!("{} {} {} {}", start_x, start_y, end_x, end_y);
 
+                                        println!("{} {} {} {} {} {}", start_v, end_v, start_u, end_u, map_tile.flip_v,map_tile.flip_h);
+
+                                        println!("{}", (90. * (PI * 2. / 360.) as f32).cos());
+                                        let rot = 90. * (PI * 2. / 360.) as f32;
+                                        let s = rot.sin();
+                                        let c = rot.cos();
+                                        let ns = s * -1.;
+
+                                        rm = Vec4::new(c, ns, s, c);
+                                        println!("{}", rm);*/
+                                        /*start_v = start_v - rot.sin();
+                                        end_v  = end_v - rot.sin();
+                                        start_u = start_u - rot.cos();
+                                        end_u = end_u - rot.cos();*/
+                                    }
                                     if map_tile.flip_h {
                                         let temp_startu = start_u;
                                         start_u = end_u;
@@ -165,12 +183,13 @@ impl AssetLoader<Map> for TiledMapLoader {
                                         start_v = end_v;
                                         end_v = temp_startv;
                                     }
+                                   
 
                                     Tile {
                                         tile_id: map_tile.gid,
                                         pos: Vec2::new(tile_x as f32, tile_y as f32),
                                         vertex: Vec4::new(start_x, start_y, end_x, end_y),
-                                        uv: Vec4::new(start_u, start_v, end_u, end_v),
+                                        uv: Vec4::new(start_u, start_v, end_u, end_v)// * rm
                                     }
                                 } else {
                                     // Empty tile
@@ -178,7 +197,7 @@ impl AssetLoader<Map> for TiledMapLoader {
                                         tile_id: 0,
                                         pos: Vec2::new(tile_x as f32, tile_y as f32),
                                         vertex: Vec4::new(0.0, 0.0, 0.0, 0.0),
-                                        uv: Vec4::new(0.0, 0.0, 0.0, 0.0),
+                                        uv: Vec4::new(0.0, 0.0, 0.0, 0.0)
                                     }
                                 };
 
@@ -259,10 +278,11 @@ impl AssetLoader<Map> for TiledMapLoader {
                                 attributes: vec![
                                     VertexAttribute::position(positions),
                                     VertexAttribute::normal(normals),
-                                    VertexAttribute::uv(uvs),
+                                    VertexAttribute::uv(uvs)
                                 ],
-                                indices: Some(indices),
+                                indices: Some(Indices::U32(indices)),
                             };
+                           // println!("Mesh: {:?}", mesh);
                             meshes.push((layer_id as u32, tileset_layer.tileset_guid, mesh));
                         }
                     }
@@ -276,6 +296,7 @@ impl AssetLoader<Map> for TiledMapLoader {
             layers,
             tile_size,
             image_folder: asset_path.parent().unwrap().to_str().unwrap().to_string(),
+            scale: 1.0
         };
 
         Ok(map)

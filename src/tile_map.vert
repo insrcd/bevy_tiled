@@ -18,9 +18,10 @@ layout(set = 2, binding = 1) uniform TileMapChunk {
     float layer_id;
 };
 
+
 void main() {
     v_Uv = Vertex_Uv;
-    vec3 position = Vertex_Position * vec3(4.0, 4.0, 1.0);
+    vec3 position = Vertex_Position * vec3(1.0, 1.0, 1.0);
     position.z = layer_id;
     gl_Position = ViewProj * Model * vec4(position, 1.0);
 }
